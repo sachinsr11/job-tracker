@@ -20,6 +20,7 @@ from adapters.unberry import UnberryAdapter
 
 import storage
 from filters.keyword_filter import passes_keyword_filter
+from filters.location_filter import passes_location_filter
 from filters.llm_classifier import classify_job
 from notifier import send_telegram_alert
 
@@ -95,18 +96,26 @@ def run_pipeline(companies: list[dict]):
                 storage.mark_seen(conn, name, job.external_id, job.title, job.url)
                 continue
 
-            result = classify_job(job.title, job.description)
+            if not passes_location_filter(job):
+                print(f"Filtered out by location: [{name}] {job.title} -> {job.location}")
+                storage.mark_seen(conn, name, job.external_id, job.title, job.url)
+                continue
+
+            result = classify_job(job.title, job.description, job.location)
             is_confidently_not_entry_level = (
                 result.get("is_entry_level") is False and result.get("confidence") == "high"
             )
             if not is_confidently_not_entry_level:
-                send_telegram_alert(name, job.title, job.url, result.get("reasoning", ""))
-                total_alerted += 1
-                print(f"ALERTED: [{name}] {job.title}")
+                if send_telegram_alert(name, job.title, job.url, result.get("reasoning", "")):
+                    total_alerted += 1
+                    print(f"ALERTED: [{name}] {job.title}")
+                    storage.mark_seen(conn, name, job.external_id, job.title, job.url)
+                else:
+                    print(f"Alert failed, will retry next run: [{name}] {job.title}")
+                    continue
             else:
                 print(f"Filtered out: [{name}] {job.title} -> {result.get('reasoning')}")
-
-            storage.mark_seen(conn, name, job.external_id, job.title, job.url)
+                storage.mark_seen(conn, name, job.external_id, job.title, job.url)
 
     print(f"\nDone. {total_new} new postings seen, {total_alerted} alerts sent.")
 

@@ -35,7 +35,14 @@ class BaseAdapter:
     def headers(self, company: dict) -> dict:
         """Parse the 'Special Headers' column (format: 'Key: Value, Key2: Value2')."""
         raw = company.get("Special Headers") or company.get("Special Header")
-        h = {}
+        h = {
+            "Accept": "application/json, text/plain, */*",
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/126.0.0.0 Safari/537.36"
+            ),
+        }
         if raw:
             for pair in str(raw).split(","):
                 if ":" in pair:

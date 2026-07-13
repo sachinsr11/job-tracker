@@ -32,6 +32,11 @@ Only set is_entry_level: false with confidence "high" when the posting
 clearly and explicitly demands significant prior professional experience
 (e.g. "5+ years required", "senior" role, people-management scope).
 
+Location rule for alerting: prefer India-based roles. If the role is clearly
+outside India, only allow it when it is explicitly remote/work-from-home/global.
+If outside India and not remote, return is_entry_level: false with confidence
+"high".
+
 Respond with ONLY a JSON object, no other text, in this exact shape:
 {"is_entry_level": true/false, "confidence": "high"/"medium"/"low", "reasoning": "one short sentence"}
 """
@@ -55,7 +60,7 @@ FEW_SHOT_EXAMPLES = [
 ]
 
 
-def classify_job(title: str, description: str) -> dict:
+def classify_job(title: str, description: str, location: str = "") -> dict:
     api_key = os.environ.get("GROQ_API_KEY")
     if not api_key:
         # Fail safe: if no key configured, don't silently drop postings --
@@ -65,7 +70,16 @@ def classify_job(title: str, description: str) -> dict:
     messages = (
         [{"role": "system", "content": SYSTEM_PROMPT}]
         + FEW_SHOT_EXAMPLES
-        + [{"role": "user", "content": f"Title: {title}\nDescription: {(description or '')[:2000]}"}]
+        + [
+            {
+                "role": "user",
+                "content": (
+                    f"Title: {title}\n"
+                    f"Location: {(location or '')[:200]}\n"
+                    f"Description: {(description or '')[:2000]}"
+                ),
+            }
+        ]
     )
 
     try:
