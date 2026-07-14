@@ -7,8 +7,8 @@ ATS to confirm/adjust field names in that adapter.
 """
 
 import sys
-import openpyxl
-from dotenv import load_dotenv
+import openpyxl #type:ignore
+from dotenv import load_dotenv #type:ignore
 
 from adapters.ashby import AshbyAdapter
 from adapters.keka import KekaAdapter
@@ -101,7 +101,7 @@ def run_pipeline(companies: list[dict]):
                 storage.mark_seen(conn, name, job.external_id, job.title, job.url)
                 continue
 
-            result = classify_job(job.title, job.description, job.location)
+            result = classify_job(job.title, job.description)
             is_confidently_not_entry_level = (
                 result.get("is_entry_level") is False and result.get("confidence") == "high"
             )

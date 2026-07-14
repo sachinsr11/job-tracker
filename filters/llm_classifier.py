@@ -1,8 +1,13 @@
 """
-Only called for postings that already passed the keyword filter, to keep
-API usage minimal. Uses Groq's free tier (serves open-source models like
-Llama 3.3) since it needs zero self-hosted infra and is fast enough to run
-inline in the polling loop.
+Only called for postings that already passed the keyword filter and the
+location filter, to keep API usage minimal. Uses Groq's free tier (serves
+open-source models like Llama 3.3) since it needs zero self-hosted infra
+and is fast enough to run inline in the polling loop.
+
+Single responsibility: semantic entry-level judgment only. Location is
+already handled deterministically by filters/location_filter.py before this
+is ever called -- duplicating that logic here would just add noise to the
+one judgment this stage exists to make.
 
 Returns structured JSON so the pipeline can act on it programmatically
 rather than parsing free-form text -- and handles malformed model output
@@ -32,11 +37,6 @@ Only set is_entry_level: false with confidence "high" when the posting
 clearly and explicitly demands significant prior professional experience
 (e.g. "5+ years required", "senior" role, people-management scope).
 
-Location rule for alerting: prefer India-based roles. If the role is clearly
-outside India, only allow it when it is explicitly remote/work-from-home/global.
-If outside India and not remote, return is_entry_level: false with confidence
-"high".
-
 Respond with ONLY a JSON object, no other text, in this exact shape:
 {"is_entry_level": true/false, "confidence": "high"/"medium"/"low", "reasoning": "one short sentence"}
 """
@@ -60,7 +60,7 @@ FEW_SHOT_EXAMPLES = [
 ]
 
 
-def classify_job(title: str, description: str, location: str = "") -> dict:
+def classify_job(title: str, description: str) -> dict:
     api_key = os.environ.get("GROQ_API_KEY")
     if not api_key:
         # Fail safe: if no key configured, don't silently drop postings --
@@ -70,16 +70,7 @@ def classify_job(title: str, description: str, location: str = "") -> dict:
     messages = (
         [{"role": "system", "content": SYSTEM_PROMPT}]
         + FEW_SHOT_EXAMPLES
-        + [
-            {
-                "role": "user",
-                "content": (
-                    f"Title: {title}\n"
-                    f"Location: {(location or '')[:200]}\n"
-                    f"Description: {(description or '')[:2000]}"
-                ),
-            }
-        ]
+        + [{"role": "user", "content": f"Title: {title}\nDescription: {(description or '')[:2000]}"}]
     )
 
     try:
