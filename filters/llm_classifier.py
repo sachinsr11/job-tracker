@@ -1,7 +1,7 @@
 """
 Only called for postings that already passed the keyword filter and the
 location filter, to keep API usage minimal. Uses Groq's free tier (serves
-open-source models like Llama 3.3) since it needs zero self-hosted infra
+open-source models like Qwen 3.8) since it needs zero self-hosted infra
 and is fast enough to run inline in the polling loop.
 
 Single responsibility: semantic entry-level judgment only. Location is
@@ -19,7 +19,7 @@ import json
 import requests
 
 GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-MODEL = "llama-3.3-70b-versatile"
+MODEL = "qwen/qwen3.8-27b"
 
 SYSTEM_PROMPT = """You judge whether a job posting is realistically worth a
 fresher/entry-level candidate's time to apply to (0 years full-time
@@ -77,7 +77,13 @@ def classify_job(title: str, description: str) -> dict:
         resp = requests.post(
             GROQ_API_URL,
             headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={"model": MODEL, "messages": messages, "temperature": 0},
+            json={
+                "model": MODEL,
+                "messages": messages,
+                "temperature": 0,
+                "reasoning_effort": "none",
+                "response_format": {"type": "json_object"},
+            },
             timeout=20,
         )
         resp.raise_for_status()
